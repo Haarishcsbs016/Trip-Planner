@@ -1,0 +1,15 @@
+{
+  "name": "wanderwise",
+  "version": "1.0.0",
+  "description": "WanderWise — AI-Powered Eco Travel Planning Platform",
+  "scripts": {
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "dev": "start /B npm run dev:server && npm run dev:client",
+    "install:all": "cd client && npm install && cd ../server && npm install",
+    "build:client": "cd client && npm run build"
+  },
+  "keywords": ["travel", "ai", "itinerary", "nature"],
+  "author": "",
+  "license": "ISC"
+}
