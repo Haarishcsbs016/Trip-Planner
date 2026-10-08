@@ -9,8 +9,8 @@ import { tripsAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import {
   MapPin, Calendar, Users, IndianRupee, Heart, Share2,
-  Download, Sparkles, RefreshCw, Edit3, ArrowLeft, Tag, Leaf,
-  ChevronDown, X, Check
+  Download, Sparkles, RefreshCw, ArrowLeft, Leaf,
+  ChevronDown, X, Check, Car, Hotel, Gauge, Fuel, Route
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 
@@ -75,40 +75,126 @@ const TripDetails = () => {
   const handleExportPDF = () => {
     if (!data) return;
     const doc = new jsPDF();
+    const totalTravelers = (data.travelers?.adults || 1) + (data.travelers?.children || 0);
+    const transport = data.transportDetails || {};
+    const hotel = data.selectedHotel || data.itinerary?.[0]?.accommodation || {};
+    const breakdown = data.budgetBreakdown || {};
+    const nights = Math.max(1, (data.days || 1) - 1);
+
     let y = 20;
 
+    // Header Box
+    doc.setFillColor(26, 58, 46);
+    doc.rect(15, 12, 180, 34, 'F');
+
+    doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(20);
-    doc.text(data.title || 'Trip Itinerary', 20, y); y += 10;
+    doc.setFontSize(16);
+    doc.text('TRIP PLANNER', 105, 22, { align: 'center' });
+
+    doc.setFontSize(13);
+    doc.text(`${(data.destination || 'DESTINATION').toUpperCase()} TRIP`, 105, 30, { align: 'center' });
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12);
-    doc.text(`${data.destination} | ${data.startDate} - ${data.endDate}`, 20, y); y += 8;
-    doc.text(`Budget: ₹${data.budget?.toLocaleString('en-IN') || 'N/A'} | Travelers: ${(data.travelers?.adults || 1) + (data.travelers?.children || 0)}`, 20, y); y += 14;
+    doc.setFontSize(9.5);
+    doc.text(`📍 ${data.startLocation || 'Start'} → ${data.destination || 'Destination'}   |   📅 ${data.startDate} – ${data.endDate}   |   👥 ${totalTravelers} Travelers`, 105, 38, { align: 'center' });
 
-    if (data.summary) {
-      doc.setFontSize(11);
-      const lines = doc.splitTextToSize(data.summary, 170);
-      doc.text(lines, 20, y); y += lines.length * 6 + 8;
+    y = 54;
+    doc.setTextColor(30, 41, 59);
+
+    // Section 1: TRIP SUMMARY
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 15, y); y += 5;
+    doc.text('TRIP SUMMARY', 15, y); y += 5;
+    doc.text('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 15, y); y += 9;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+
+    const vehicleName = (transport.vehicleType || 'Car').toUpperCase();
+    const fuelTypeName = (transport.fuelType || 'Petrol');
+    const mileageVal = transport.mileage || 15;
+    const travelCostVal = breakdown.transportation || transport.calculatedFuelCost || 0;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Transportation:', 15, y); doc.setFont('helvetica', 'normal');
+    doc.text(`${vehicleName}`, 55, y); y += 5;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Fuel Type:', 15, y); doc.setFont('helvetica', 'normal');
+    doc.text(`${fuelTypeName}`, 55, y); y += 5;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Mileage:', 15, y); doc.setFont('helvetica', 'normal');
+    doc.text(`${mileageVal} km/l`, 55, y); y += 6;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Estimated Travel Cost:', 15, y); doc.setFont('helvetica', 'normal');
+    doc.text(`₹${travelCostVal.toLocaleString('en-IN')}`, 60, y); y += 8;
+
+    if (hotel && hotel.name) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Hotel:', 15, y); doc.setFont('helvetica', 'normal');
+      doc.text(`${hotel.name} (⭐ ${hotel.rating || 4.5})`, 40, y); y += 6;
+
+      doc.setFont('helvetica', 'bold');
+      doc.text('Stay:', 15, y); doc.setFont('helvetica', 'normal');
+      doc.text(`${nights} Night${nights > 1 ? 's' : ''}`, 40, y); y += 8;
     }
 
+    // Section 2: DAY BY DAY ITINERARY
     (data.itinerary || []).forEach(day => {
-      if (y > 260) { doc.addPage(); y = 20; }
+      if (y > 240) { doc.addPage(); y = 20; }
+
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.text(`Day ${day.day}: ${day.title || ''}`, 20, y); y += 8;
+      doc.setFontSize(11);
+      doc.text('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 15, y); y += 5;
+      doc.text(`DAY ${day.day}: ${(day.title || day.date || '').toUpperCase()}`, 15, y); y += 5;
+      doc.text('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 15, y); y += 8;
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
+      doc.setFontSize(9.5);
+
       (day.activities || []).forEach(act => {
         if (y > 270) { doc.addPage(); y = 20; }
-        doc.text(`• ${act.startTime || ''} - ${act.name}: ${act.description || ''}`.substring(0, 90), 25, y); y += 6;
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${act.startTime || '09:00 AM'}`, 18, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`${act.name} — ${act.description || ''}`.substring(0, 75), 45, y);
+        y += 6;
       });
-      y += 8;
+      y += 4;
     });
 
-    doc.save(`${data.destination}-trip-plan.pdf`);
-    toast.success('PDF downloaded! 📄');
+    // Section 3: COST SUMMARY
+    if (y > 210) { doc.addPage(); y = 20; }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 15, y); y += 5;
+    doc.text('COST SUMMARY', 15, y); y += 5;
+    doc.text('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 15, y); y += 9;
+
+    const transportAmt = breakdown.transportation || 0;
+    const accomAmt = breakdown.accommodation || 0;
+    const foodAmt = breakdown.food || 0;
+    const totalCostAmt = data.estimatedCost || (transportAmt + accomAmt + foodAmt);
+    const perPersonAmt = Math.round(totalCostAmt / (totalTravelers || 1));
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text('Transportation', 18, y); doc.text(`₹${transportAmt.toLocaleString('en-IN')}`, 140, y, { align: 'right' }); y += 6;
+    doc.text('Accommodation', 18, y); doc.text(`₹${accomAmt.toLocaleString('en-IN')}`, 140, y, { align: 'right' }); y += 6;
+    doc.text('Food & Dining', 18, y); doc.text(`₹${foodAmt.toLocaleString('en-IN')}`, 140, y, { align: 'right' }); y += 8;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total', 18, y); doc.text(`₹${totalCostAmt.toLocaleString('en-IN')}`, 140, y, { align: 'right' }); y += 6;
+    doc.text('Per Person', 18, y); doc.text(`₹${perPersonAmt.toLocaleString('en-IN')}`, 140, y, { align: 'right' }); y += 8;
+
+    doc.text('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 15, y);
+
+    doc.save(`${data.destination}-Trip-Plan.pdf`);
+    toast.success('PDF downloaded successfully! 📄');
   };
 
   if (isLoading) {
@@ -145,6 +231,8 @@ const TripDetails = () => {
   const trip = data;
   const totalTravelers = (trip.travelers?.adults || 1) + (trip.travelers?.children || 0);
   const isSaved = trip.status === 'saved';
+  const transport = trip.transportDetails || {};
+  const hotel = trip.selectedHotel || trip.itinerary?.[0]?.accommodation;
 
   return (
     <div className="bg-page" style={{ minHeight: '100vh' }}>
@@ -270,10 +358,11 @@ const TripDetails = () => {
           <button
             id="export-pdf-btn"
             onClick={handleExportPDF}
-            className="btn-secondary"
+            className="btn-primary"
+            style={{ background: 'linear-gradient(135deg, #1a3a2e, #4a8c6f)' }}
           >
             <Download size={16} />
-            Export PDF
+            Download Trip PDF
           </button>
         </div>
 
@@ -296,7 +385,7 @@ const TripDetails = () => {
         )}
 
         {/* Main Content Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24, alignItems: 'start' }}>
           {/* Itinerary */}
           <div>
             <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, color: '#1a3a2e', marginBottom: 20 }}>
@@ -337,63 +426,77 @@ const TripDetails = () => {
             )}
           </div>
 
-          {/* Sidebar: Budget + Map */}
+          {/* Sidebar */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* Selected Hotel Card */}
+            {hotel && hotel.name && (
+              <div className="glass-card" style={{ padding: 24, border: '2px solid rgba(74,140,111,0.2)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <Hotel size={18} color="#4a8c6f" />
+                  <h4 style={{ fontFamily: "'Playfair Display', serif", fontSize: 17, color: '#1a3a2e', margin: 0 }}>
+                    Selected Hotel Stay
+                  </h4>
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: '#1a3a2e', marginBottom: 4 }}>
+                  {hotel.name}
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#d4a843', marginBottom: 6 }}>
+                  ⭐ {hotel.rating || 4.5} Rating
+                </div>
+                <div style={{ fontSize: 13, color: '#4a8c6f', fontWeight: 700, marginBottom: 8 }}>
+                  ₹{(hotel.pricePerNight || hotel.estimatedCost || 5000).toLocaleString('en-IN')}/night
+                  {hotel.isEstimatedPrice && <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 6 }}>(Est. Price)</span>}
+                </div>
+                <div style={{ fontSize: 12, color: '#6b7280' }}>
+                  📍 {hotel.address || hotel.location || trip.destination}
+                </div>
+              </div>
+            )}
+
+            {/* Vehicle & Transportation Details Card */}
+            <div className="glass-card" style={{ padding: 24, border: '2px solid rgba(74,140,111,0.2)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <Car size={18} color="#4a8c6f" />
+                <h4 style={{ fontFamily: "'Playfair Display', serif", fontSize: 17, color: '#1a3a2e', margin: 0 }}>
+                  Transportation Details
+                </h4>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#9ca3af' }}>Vehicle</span>
+                  <span style={{ fontWeight: 700, color: '#1a3a2e', textTransform: 'capitalize' }}>{transport.vehicleType || 'Car'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#9ca3af' }}>Fuel Type</span>
+                  <span style={{ fontWeight: 700, color: '#1a3a2e', textTransform: 'capitalize' }}>{transport.fuelType || 'Petrol'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#9ca3af' }}>Mileage</span>
+                  <span style={{ fontWeight: 700, color: '#1a3a2e' }}>{transport.mileage || 15} km/l</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#9ca3af' }}>One-Way Distance</span>
+                  <span style={{ fontWeight: 700, color: '#1a3a2e' }}>{transport.oneWayDistanceKm || 300} km</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#9ca3af' }}>Round Trip</span>
+                  <span style={{ fontWeight: 700, color: '#1a3a2e' }}>{transport.roundTripDistanceKm || 600} km</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, borderTop: '1px dashed #e5e7eb' }}>
+                  <span style={{ color: '#4a8c6f', fontWeight: 700 }}>Est. Travel Cost</span>
+                  <span style={{ fontWeight: 800, color: '#4a8c6f' }}>
+                    ₹{(trip.budgetBreakdown?.transportation || transport.calculatedFuelCost || 0).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <BudgetCard
               budget={trip.budget}
               estimatedCost={trip.estimatedCost}
               budgetStatus={trip.budgetStatus}
               budgetBreakdown={trip.budgetBreakdown}
             />
-
-            {/* Map placeholder */}
-            <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-              <div style={{
-                height: 280, background: 'linear-gradient(135deg, #1a3a2e 0%, #2d5a45 100%)',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                color: 'white', textAlign: 'center', padding: 24,
-              }}>
-                <div style={{ fontSize: 48, marginBottom: 12, animation: 'float 3s ease-in-out infinite' }}>🗺️</div>
-                <h4 style={{ fontFamily: "'Playfair Display', serif", fontSize: 18, marginBottom: 8 }}>
-                  Interactive Map
-                </h4>
-                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5, marginBottom: 16 }}>
-                  Add your Google Maps API key to see the route and all attractions on an interactive map.
-                </p>
-                <a
-                  href={`https://www.google.com/maps/search/${encodeURIComponent(trip.destination)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-ghost"
-                  style={{ fontSize: 13, padding: '8px 20px' }}
-                >
-                  <MapPin size={14} />
-                  View on Google Maps
-                </a>
-              </div>
-            </div>
-
-            {/* Trip info card */}
-            <div className="glass-card" style={{ padding: 24 }}>
-              <h4 style={{ fontFamily: "'Playfair Display', serif", fontSize: 16, color: '#1a3a2e', marginBottom: 14 }}>
-                Trip Details
-              </h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[
-                  { label: 'Destination', value: trip.destination },
-                  { label: 'From', value: trip.startLocation },
-                  { label: 'Duration', value: `${trip.days} days` },
-                  { label: 'Accommodation', value: trip.preferences?.accommodation || 'N/A' },
-                  { label: 'Transport', value: trip.preferences?.transport?.join(', ') || 'N/A' },
-                  { label: 'Travel Style', value: trip.preferences?.travelStyle?.slice(0,3).join(', ') || 'N/A' },
-                ].map(({ label, value }) => (
-                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                    <span style={{ color: '#9ca3af', fontWeight: 500 }}>{label}</span>
-                    <span style={{ color: '#1a3a2e', fontWeight: 600, textAlign: 'right', maxWidth: '55%' }}>{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </div>

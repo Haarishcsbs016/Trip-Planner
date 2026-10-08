@@ -46,9 +46,20 @@ export const useTripStore = create((set, get) => ({
     preferences: {
       travelStyle: [],
       interests: [],
-      transport: [],
+      transport: ['car'],
       accommodation: 'mid-range',
     },
+    transportDetails: {
+      vehicleType: 'car',
+      fuelType: 'petrol',
+      mileage: 15,
+      oneWayDistanceKm: 0,
+      roundTripDistanceKm: 0,
+      fuelRequiredLiters: 0,
+      fuelPricePerLiter: 104,
+      calculatedFuelCost: 0,
+    },
+    selectedHotel: null,
   },
 
   // Current generated trip
@@ -64,6 +75,19 @@ export const useTripStore = create((set, get) => ({
   updateTripForm: (updates) =>
     set((state) => ({
       tripForm: { ...state.tripForm, ...updates },
+    })),
+
+  updateTransportDetails: (updates) =>
+    set((state) => ({
+      tripForm: {
+        ...state.tripForm,
+        transportDetails: { ...state.tripForm.transportDetails, ...updates },
+      },
+    })),
+
+  setSelectedHotel: (hotel) =>
+    set((state) => ({
+      tripForm: { ...state.tripForm, selectedHotel: hotel },
     })),
 
   updatePreferences: (updates) =>
@@ -91,9 +115,20 @@ export const useTripStore = create((set, get) => ({
         preferences: {
           travelStyle: [],
           interests: [],
-          transport: [],
+          transport: ['car'],
           accommodation: 'mid-range',
         },
+        transportDetails: {
+          vehicleType: 'car',
+          fuelType: 'petrol',
+          mileage: 15,
+          oneWayDistanceKm: 0,
+          roundTripDistanceKm: 0,
+          fuelRequiredLiters: 0,
+          fuelPricePerLiter: 104,
+          calculatedFuelCost: 0,
+        },
+        selectedHotel: null,
       },
     }),
 }));

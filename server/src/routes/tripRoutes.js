@@ -10,11 +10,15 @@ const {
   deleteTrip,
   shareTrip,
   saveTrip,
-  getSharedTrip,
+  getHotels,
+  getRouteDistance,
 } = require('../controllers/tripController');
 const { protect } = require('../middleware/authMiddleware');
 
 router.use(protect);
+
+router.get('/hotels', getHotels);
+router.post('/distance', getRouteDistance);
 
 router.route('/').get(getTrips).post(createTrip);
 router.route('/:id').get(getTrip).put(updateTrip).delete(deleteTrip);

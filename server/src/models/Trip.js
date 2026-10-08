@@ -68,6 +68,37 @@ const budgetBreakdownSchema = new mongoose.Schema({
   total: Number,
 });
 
+const transportDetailsSchema = new mongoose.Schema(
+  {
+    vehicleType: { type: String, enum: ['car', 'bike', 'bus', 'train', 'flight', 'rental car', 'other'], default: 'car' },
+    fuelType: { type: String, enum: ['petrol', 'diesel', 'n/a'], default: 'petrol' },
+    mileage: { type: Number, default: 15 },
+    oneWayDistanceKm: { type: Number, default: 0 },
+    roundTripDistanceKm: { type: Number, default: 0 },
+    fuelRequiredLiters: { type: Number, default: 0 },
+    fuelPricePerLiter: { type: Number, default: 104 },
+    calculatedFuelCost: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+const selectedHotelSchema = new mongoose.Schema(
+  {
+    placeId: String,
+    name: String,
+    rating: Number,
+    address: String,
+    location: {
+      lat: Number,
+      lng: Number,
+    },
+    pricePerNight: Number,
+    isEstimatedPrice: { type: Boolean, default: true },
+    imageUrl: String,
+  },
+  { _id: false }
+);
+
 const tripSchema = new mongoose.Schema(
   {
     userId: {
@@ -116,6 +147,8 @@ const tripSchema = new mongoose.Schema(
       accommodation: String,
       interests: [String],
     },
+    transportDetails: transportDetailsSchema,
+    selectedHotel: selectedHotelSchema,
     summary: String,
     estimatedCost: Number,
     budgetBreakdown: budgetBreakdownSchema,

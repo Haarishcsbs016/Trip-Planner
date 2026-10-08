@@ -4,23 +4,56 @@ const logger = require('../utils/logger');
  * Calculate budget breakdown for a trip
  */
 const calculateBudget = (tripData, places) => {
-  const { days, travelers, budget, preferences } = tripData;
+  const { days, travelers, budget, preferences, transportDetails, selectedHotel } = tripData;
   const totalTravelers = (travelers?.adults || 1) + (travelers?.children || 0);
-  const accommodation = preferences?.accommodation || 'mid-range';
-  const transport = preferences?.transport?.[0] || 'car';
 
-  const accommodationCostPerNight = getAccommodationCost(accommodation);
-  const transportCost = getTransportCost(transport, days, tripData.startLocation, tripData.destination);
-  const foodCostPerDay = getFoodCostPerDay(accommodation) * totalTravelers;
+  // 1. Accommodation Cost
+  let accomTotal = 0;
+  const nights = Math.max(1, days - 1);
+  const roomsNeeded = Math.ceil(totalTravelers / 2);
+
+  if (selectedHotel && selectedHotel.pricePerNight) {
+    accomTotal = selectedHotel.pricePerNight * nights * roomsNeeded;
+  } else {
+    const accommodation = preferences?.accommodation || 'mid-range';
+    const accommodationCostPerNight = getAccommodationCost(accommodation);
+    accomTotal = accommodationCostPerNight * nights * roomsNeeded;
+  }
+
+  // 2. Transportation Cost
+  let transportCost = 0;
+  if (transportDetails && transportDetails.calculatedFuelCost > 0) {
+    transportCost = transportDetails.calculatedFuelCost;
+  } else if (
+    transportDetails &&
+    (transportDetails.vehicleType === 'car' || transportDetails.vehicleType === 'bike')
+  ) {
+    const vehicle = transportDetails.vehicleType;
+    const mileage = transportDetails.mileage || (vehicle === 'car' ? 15 : 40);
+    const fuelPrice =
+      transportDetails.fuelPricePerLiter ||
+      (transportDetails.fuelType === 'diesel' ? 92 : 104);
+    const distance = transportDetails.oneWayDistanceKm || 300;
+    const roundTrip = distance * 2;
+    const litersNeeded = roundTrip / mileage;
+    transportCost = Math.round(litersNeeded * fuelPrice);
+  } else {
+    const transport = preferences?.transport?.[0] || 'car';
+    transportCost = getTransportCost(transport, days, tripData.startLocation, tripData.destination);
+  }
+
+  // 3. Food & Activities Cost
+  const accommodationType = selectedHotel ? 'hotel' : preferences?.accommodation || 'mid-range';
+  const foodCostPerDay = getFoodCostPerDay(accommodationType) * totalTravelers;
   const activityCostPerDay = getActivityCostPerDay(preferences?.interests || []) * totalTravelers;
-  const miscPercentage = 0.08;
 
-  const accomTotal = accommodationCostPerNight * (days - 1) * Math.ceil(totalTravelers / 2);
   const foodTotal = foodCostPerDay * days;
   const activityTotal = activityCostPerDay * days;
+
   const subtotal = transportCost + accomTotal + foodTotal + activityTotal;
+  const miscPercentage = 0.08;
   const miscTotal = Math.round(subtotal * miscPercentage);
-  const total = subtotal + miscTotal;
+  const total = Math.round(subtotal + miscTotal);
 
   const breakdown = {
     transportation: Math.round(transportCost),

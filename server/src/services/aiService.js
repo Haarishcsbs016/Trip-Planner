@@ -153,8 +153,18 @@ Apply this modification and return the complete updated itinerary JSON.`;
 };
 
 const buildUserPrompt = (tripData, contextData) => {
-  const { destination, startLocation, startDate, endDate, days, travelers, budget, preferences } = tripData;
+  const { destination, startLocation, startDate, endDate, days, travelers, budget, preferences, transportDetails, selectedHotel } = tripData;
   const totalTravelers = (travelers?.adults || 1) + (travelers?.children || 0);
+
+  let transportInfo = `Transport: ${preferences?.transport?.join(', ') || 'car'}`;
+  if (transportDetails && (transportDetails.vehicleType === 'car' || transportDetails.vehicleType === 'bike')) {
+    transportInfo = `Transport: ${transportDetails.vehicleType} (${transportDetails.fuelType || 'petrol'}, Mileage: ${transportDetails.mileage || 15} km/l, One-way distance: ${transportDetails.oneWayDistanceKm || 300} km, Est. Fuel cost: ₹${transportDetails.calculatedFuelCost || 0})`;
+  }
+
+  let hotelInfo = `Accommodation: ${preferences?.accommodation || 'mid-range'}`;
+  if (selectedHotel && selectedHotel.name) {
+    hotelInfo = `Selected Hotel: ${selectedHotel.name} (Rating: ${selectedHotel.rating || 4.2}★, Address: ${selectedHotel.address || destination}, Est. Rate: ₹${selectedHotel.pricePerNight || 5000}/night)`;
+  }
 
   return `Plan a ${days}-day trip with the following details:
 
@@ -168,8 +178,8 @@ TRIP DETAILS:
 - Total Budget: ₹${budget}
 - Travel Style: ${preferences?.travelStyle?.join(', ') || 'general'}
 - Interests: ${preferences?.interests?.join(', ') || 'sightseeing'}
-- Transport: ${preferences?.transport?.join(', ') || 'car'}
-- Accommodation: ${preferences?.accommodation || 'mid-range'}
+- ${transportInfo}
+- ${hotelInfo}
 
 AVAILABLE ATTRACTIONS:
 ${JSON.stringify(contextData.places?.slice(0, 8) || [], null, 2)}
@@ -182,6 +192,7 @@ ${JSON.stringify(contextData.weather || [], null, 2)}
 
 INSTRUCTIONS:
 - Use the actual place names from the AVAILABLE ATTRACTIONS list when possible
+- Use the Selected Hotel (${selectedHotel?.name || 'the accommodation'}) as the base lodging for each day in the itinerary
 - Plan outdoor activities on days with good weather; indoor activities when rain is expected
 - Keep geographically close places on the same day
 - Stay within ₹${budget} total budget
@@ -192,7 +203,7 @@ INSTRUCTIONS:
 };
 
 const generateDemoItinerary = (tripData) => {
-  const { destination, startDate, days, budget } = tripData;
+  const { destination, startDate, days, budget, selectedHotel } = tripData;
   const start = new Date(startDate || Date.now());
 
   const demoActivities = {
@@ -205,6 +216,20 @@ const generateDemoItinerary = (tripData) => {
     const dayDate = new Date(start);
     dayDate.setDate(start.getDate() + i);
     const activities = demoActivities[(i % 3) + 1] || demoActivities[1];
+
+    const hotelObj = selectedHotel && selectedHotel.name ? {
+      name: selectedHotel.name,
+      type: 'Hotel',
+      location: selectedHotel.address || `Central ${destination}`,
+      estimatedCost: selectedHotel.pricePerNight || 5000,
+      rating: selectedHotel.rating || 4.5,
+    } : {
+      name: `${destination} Comfort Inn`,
+      type: tripData.preferences?.accommodation || 'mid-range',
+      location: `Central ${destination}`,
+      estimatedCost: Math.round((budget * 0.15) / days),
+      rating: 4.2,
+    };
 
     return {
       day: i + 1,
@@ -221,17 +246,11 @@ const generateDemoItinerary = (tripData) => {
         tips: 'Best visited in the morning for pleasant weather.',
       })),
       meals: {
-        breakfast: { name: 'Hotel Breakfast', location: `Your Hotel, ${destination}`, estimatedCost: 200 },
+        breakfast: { name: 'Hotel Breakfast', location: selectedHotel?.name ? selectedHotel.name : `Your Hotel, ${destination}`, estimatedCost: 200 },
         lunch: { name: `${destination} Local Restaurant`, location: `Near ${activities[0]}`, estimatedCost: 400 },
         dinner: { name: 'Local Cuisine Experience', location: `${destination} Food Street`, estimatedCost: 600 },
       },
-      accommodation: {
-        name: `${destination} Comfort Inn`,
-        type: tripData.preferences?.accommodation || 'mid-range',
-        location: `Central ${destination}`,
-        estimatedCost: Math.round(budget * 0.15 / days),
-        rating: 4.2,
-      },
+      accommodation: hotelObj,
       estimatedCost: Math.round(budget / days),
       tips: [
         `Carry water and sunscreen when visiting outdoor spots`,

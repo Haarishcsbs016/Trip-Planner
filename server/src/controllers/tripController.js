@@ -1,9 +1,64 @@
 const Trip = require('../models/Trip');
 const { planTrip, replanTrip } = require('../services/itineraryService');
+const { searchHotels, calculateRouteDistance } = require('../services/mapsService');
 const { validateTripInput } = require('../utils/validators');
 const crypto = require('crypto');
-const nanoid = () => crypto.randomBytes(5).toString('hex');
 const logger = require('../utils/logger');
+
+// @desc    Get real hotels for a destination
+// @route   GET /api/trips/hotels
+// @access  Private
+const getHotels = async (req, res, next) => {
+  try {
+    const { destination, minRating, maxPrice } = req.query;
+    if (!destination) {
+      return res.status(400).json({ success: false, message: 'Destination is required' });
+    }
+    const hotels = await searchHotels(
+      destination,
+      minRating ? parseFloat(minRating) : 4.0,
+      maxPrice ? parseInt(maxPrice) : 15000
+    );
+    res.json({ success: true, hotels });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Calculate distance and fuel cost
+// @route   POST /api/trips/distance
+// @access  Private
+const getRouteDistance = async (req, res, next) => {
+  try {
+    const { startLocation, destination, vehicleType = 'car', fuelType = 'petrol', mileage = 15 } = req.body;
+    if (!startLocation || !destination) {
+      return res.status(400).json({ success: false, message: 'Start location and destination required' });
+    }
+
+    const oneWayDistanceKm = await calculateRouteDistance(startLocation, destination);
+    const roundTripDistanceKm = oneWayDistanceKm * 2;
+    const effectiveMileage = mileage > 0 ? mileage : vehicleType === 'car' ? 15 : 40;
+    const fuelPricePerLiter = fuelType === 'diesel' ? 92 : 104;
+    const fuelRequiredLiters = Number((roundTripDistanceKm / effectiveMileage).toFixed(1));
+    const calculatedFuelCost = Math.round(fuelRequiredLiters * fuelPricePerLiter);
+
+    res.json({
+      success: true,
+      distance: {
+        vehicleType,
+        fuelType,
+        mileage: effectiveMileage,
+        oneWayDistanceKm,
+        roundTripDistanceKm,
+        fuelRequiredLiters,
+        fuelPricePerLiter,
+        calculatedFuelCost,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 // @desc    Create a new trip
 // @route   POST /api/trips
@@ -15,7 +70,18 @@ const createTrip = async (req, res, next) => {
       return res.status(400).json({ success: false, errors });
     }
 
-    const { destination, startLocation, startDate, endDate, travelers, budget, preferences, title } = req.body;
+    const {
+      destination,
+      startLocation,
+      startDate,
+      endDate,
+      travelers,
+      budget,
+      preferences,
+      title,
+      transportDetails,
+      selectedHotel,
+    } = req.body;
 
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -32,6 +98,8 @@ const createTrip = async (req, res, next) => {
       travelers: travelers || { adults: 1, children: 0 },
       budget,
       preferences: preferences || {},
+      transportDetails: transportDetails || {},
+      selectedHotel: selectedHotel || null,
       status: 'draft',
     });
 
@@ -60,6 +128,8 @@ const generateTrip = async (req, res, next) => {
       travelers: trip.travelers,
       budget: trip.budget,
       preferences: trip.preferences,
+      transportDetails: trip.transportDetails,
+      selectedHotel: trip.selectedHotel,
     };
 
     const result = await planTrip(tripData);
@@ -68,6 +138,7 @@ const generateTrip = async (req, res, next) => {
     trip.title = result.tripTitle || trip.title;
     trip.summary = result.summary;
     trip.itinerary = result.days;
+    trip.transportDetails = result.transportDetails || trip.transportDetails;
     trip.estimatedCost = result.estimatedCost;
     trip.budgetBreakdown = result.budgetBreakdown;
     trip.budgetStatus = result.budgetStatus;
@@ -165,7 +236,7 @@ const updateTrip = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Trip not found' });
     }
 
-    const allowedUpdates = ['title', 'itinerary', 'status', 'budget', 'preferences', 'summary'];
+    const allowedUpdates = ['title', 'itinerary', 'status', 'budget', 'preferences', 'summary', 'transportDetails', 'selectedHotel'];
     allowedUpdates.forEach((field) => {
       if (req.body[field] !== undefined) {
         trip[field] = req.body[field];
@@ -253,6 +324,8 @@ const saveTrip = async (req, res, next) => {
 };
 
 module.exports = {
+  getHotels,
+  getRouteDistance,
   createTrip,
   generateTrip,
   regenerateTrip,

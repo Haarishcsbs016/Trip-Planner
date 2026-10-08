@@ -57,6 +57,8 @@ export const tripsAPI = {
   share: (id) => api.post(`/trips/${id}/share`),
   save: (id) => api.put(`/trips/${id}/save`),
   getShared: (shareId) => api.get(`/shared/${shareId}`),
+  getHotels: (params) => api.get('/trips/hotels', { params }),
+  getDistance: (data) => api.post('/trips/distance', data),
 };
 
 // ─── User ───
