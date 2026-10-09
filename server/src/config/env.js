@@ -1,10 +1,5 @@
 const validateEnv = () => {
-  if (!process.env.JWT_SECRET) {
-    process.env.JWT_SECRET = 'wanderwise_jwt_secret_key_2026_super_secret_key';
-    console.warn('⚠️ JWT_SECRET not set in .env. Using default fallback key.');
-  }
-
-  const required = ['MONGODB_URI'];
+  const required = ['MONGODB_URI', 'JWT_SECRET'];
   const optional = ['OPENAI_API_KEY', 'GOOGLE_MAPS_API_KEY', 'OPENWEATHER_API_KEY'];
   const missing = [];
 

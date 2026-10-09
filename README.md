@@ -440,6 +440,12 @@ VITE_GOOGLE_MAPS_API_KEY=
 
 ⚠️ Never commit .env files or expose secret API keys in the frontend or GitHub repository.
 
+API integration notes:
+- `OPENAI_API_KEY` powers itinerary generation and regeneration. The server uses the `gpt-4o-mini` chat model and falls back to a demo itinerary when unavailable.
+- `GOOGLE_MAPS_API_KEY` powers geocoding, Places search for attractions/restaurants/hotels, and route distance. Hotel results are Google Places results with estimated nightly prices; this is not a hotel-booking API.
+- `OPENWEATHER_API_KEY` powers destination geocoding and forecast data. The server falls back to simulated weather when unavailable.
+- `MONGODB_URI` connects the server to MongoDB for users and trips; `JWT_SECRET` signs login tokens; `CLIENT_URL` configures CORS.
+
 💻 Local Development
 1. Clone the repository
 git clone https://github.com/Haarishcsbs016/Trip-Planner.git

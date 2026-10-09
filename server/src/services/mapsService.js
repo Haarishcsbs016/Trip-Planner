@@ -1,7 +1,8 @@
 const axios = require('axios');
 const logger = require('../utils/logger');
 
-const MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+const MAPS_API_KEY = (process.env.GOOGLE_MAPS_API_KEY || '').trim();
+
 const PLACES_BASE = 'https://maps.googleapis.com/maps/api/place';
 const DISTANCE_BASE = 'https://maps.googleapis.com/maps/api/distancematrix';
 const GEOCODE_BASE = 'https://maps.googleapis.com/maps/api/geocode';
@@ -10,15 +11,15 @@ const GEOCODE_BASE = 'https://maps.googleapis.com/maps/api/geocode';
  * Search for places near destination
  */
 const searchPlaces = async (destination, type = 'tourist_attraction', maxResults = 10) => {
-  if (!MAPS_API_KEY) {
-    logger.warn('Google Maps API key not configured. Using sample places data.');
+  const apiKey = MAPS_API_KEY;
+  if (!apiKey) {
+    logger.warn('No Google Maps API key configured. Using sample places data.');
     return getSamplePlaces(destination, type);
   }
 
   try {
-    // First geocode the destination
     const geoRes = await axios.get(`${GEOCODE_BASE}/json`, {
-      params: { address: destination, key: MAPS_API_KEY },
+      params: { address: destination, key: apiKey },
     });
 
     if (geoRes.data.status !== 'OK') {
@@ -33,10 +34,14 @@ const searchPlaces = async (destination, type = 'tourist_attraction', maxResults
         location: locationStr,
         radius: 15000,
         type,
-        key: MAPS_API_KEY,
+        key: apiKey,
         rankby: 'prominence',
       },
     });
+
+    if (placesRes.data.status !== 'OK') {
+      return getSamplePlaces(destination, type);
+    }
 
     return placesRes.data.results.slice(0, maxResults).map((place) => ({
       placeId: place.place_id,
@@ -53,7 +58,7 @@ const searchPlaces = async (destination, type = 'tourist_attraction', maxResults
       priceLevel: place.price_level,
     }));
   } catch (error) {
-    logger.error('Maps API error:', error.message);
+    logger.error('Places search API error:', error.message);
     return getSamplePlaces(destination, type);
   }
 };
@@ -62,9 +67,8 @@ const searchPlaces = async (destination, type = 'tourist_attraction', maxResults
  * Calculate distances between places
  */
 const calculateDistances = async (origins, destinations) => {
-  if (!MAPS_API_KEY) {
-    return null;
-  }
+  const apiKey = MAPS_API_KEY;
+  if (!apiKey) return null;
 
   try {
     const res = await axios.get(`${DISTANCE_BASE}/json`, {
@@ -72,7 +76,7 @@ const calculateDistances = async (origins, destinations) => {
         origins: origins.join('|'),
         destinations: destinations.join('|'),
         mode: 'driving',
-        key: MAPS_API_KEY,
+        key: apiKey,
         units: 'metric',
       },
     });
@@ -88,13 +92,12 @@ const calculateDistances = async (origins, destinations) => {
  * Geocode a location to lat/lng
  */
 const geocodeLocation = async (address) => {
-  if (!MAPS_API_KEY) {
-    return null;
-  }
+  const apiKey = MAPS_API_KEY;
+  if (!apiKey) return null;
 
   try {
     const res = await axios.get(`${GEOCODE_BASE}/json`, {
-      params: { address, key: MAPS_API_KEY },
+      params: { address, key: apiKey },
     });
 
     if (res.data.status === 'OK') {
@@ -107,25 +110,101 @@ const geocodeLocation = async (address) => {
   }
 };
 
+const CITY_COORDINATES = {
+  'chennai': { lat: 13.0827, lng: 80.2707 },
+  'coimbatore': { lat: 11.0168, lng: 76.9558 },
+  'kodaikanal': { lat: 10.2381, lng: 77.4892 },
+  'kodai': { lat: 10.2381, lng: 77.4892 },
+  'ooty': { lat: 11.4102, lng: 76.6950 },
+  'madurai': { lat: 9.9252, lng: 78.1198 },
+  'bangalore': { lat: 12.9716, lng: 77.5946 },
+  'bengaluru': { lat: 12.9716, lng: 77.5946 },
+  'mysore': { lat: 12.2958, lng: 76.6394 },
+  'coorg': { lat: 12.3375, lng: 75.8069 },
+  'mumbai': { lat: 19.0760, lng: 72.8777 },
+  'pune': { lat: 18.5204, lng: 73.8567 },
+  'goa': { lat: 15.2993, lng: 74.1240 },
+  'delhi': { lat: 28.6139, lng: 77.2090 },
+  'manali': { lat: 32.2432, lng: 77.1892 },
+  'shimla': { lat: 31.1048, lng: 77.1734 },
+  'jaipur': { lat: 26.9124, lng: 75.7873 },
+  'udaipur': { lat: 24.5854, lng: 73.7125 },
+  'kochi': { lat: 9.9312, lng: 76.2673 },
+  'cochin': { lat: 9.9312, lng: 76.2673 },
+  'munnar': { lat: 10.0889, lng: 77.0595 },
+  'wayanad': { lat: 11.6854, lng: 76.1320 },
+  'trivandrum': { lat: 8.5241, lng: 76.9366 },
+  'hyderabad': { lat: 17.3850, lng: 78.4867 },
+  'kolkata': { lat: 22.5726, lng: 88.3639 },
+  'trichy': { lat: 10.7905, lng: 78.7047 },
+  'salem': { lat: 11.6643, lng: 78.1460 },
+  'pondicherry': { lat: 11.9416, lng: 79.8083 },
+  'kanyakumari': { lat: 8.0883, lng: 77.5385 },
+  'tirupati': { lat: 13.6288, lng: 79.4192 },
+};
+
+const getCityCoordinates = (locationName) => {
+  const norm = (locationName || '').toLowerCase().trim();
+  for (const [key, coords] of Object.entries(CITY_COORDINATES)) {
+    if (norm.includes(key) || key.includes(norm)) {
+      return coords;
+    }
+  }
+  return null;
+};
+
+const haversineDistanceKm = (lat1, lon1, lat2, lon2) => {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 1.25);
+};
+
 const estimateRouteDistanceFallback = (startLocation, destination) => {
   const s = (startLocation || '').toLowerCase().trim();
   const d = (destination || '').toLowerCase().trim();
 
-  // Known city pairs for accuracy
-  if ((s.includes('chennai') && d.includes('ooty')) || (s.includes('ooty') && d.includes('chennai'))) return 550;
-  if ((s.includes('mumbai') && d.includes('goa')) || (s.includes('goa') && d.includes('mumbai'))) return 590;
-  if ((s.includes('delhi') && d.includes('manali')) || (s.includes('manali') && d.includes('delhi'))) return 530;
-  if ((s.includes('bangalore') && d.includes('ooty')) || (s.includes('ooty') && d.includes('bangalore'))) return 270;
-  if ((s.includes('bangalore') && d.includes('coorg')) || (s.includes('coorg') && d.includes('bangalore'))) return 265;
-  if ((s.includes('chennai') && d.includes('goa')) || (s.includes('goa') && d.includes('chennai'))) return 890;
+  const startCoords = getCityCoordinates(s);
+  const destCoords = getCityCoordinates(d);
+  if (startCoords && destCoords) {
+    return haversineDistanceKm(startCoords.lat, startCoords.lng, destCoords.lat, destCoords.lng);
+  }
 
-  // Fallback deterministic formula based on string length & hash
+  const known = [
+    { s: 'coimbatore', d: 'kodaikanal', km: 160 },
+    { s: 'madurai', d: 'coimbatore', km: 210 },
+    { s: 'madurai', d: 'kodaikanal', km: 115 },
+    { s: 'chennai', d: 'ooty', km: 550 },
+    { s: 'chennai', d: 'kodaikanal', km: 520 },
+    { s: 'bangalore', d: 'ooty', km: 270 },
+    { s: 'bangalore', d: 'kodaikanal', km: 465 },
+    { s: 'bangalore', d: 'coorg', km: 265 },
+    { s: 'mumbai', d: 'goa', km: 590 },
+    { s: 'delhi', d: 'manali', km: 530 },
+  ];
+
+  for (const pair of known) {
+    if (
+      (s.includes(pair.s) && d.includes(pair.d)) ||
+      (s.includes(pair.d) && d.includes(pair.s))
+    ) {
+      return pair.km;
+    }
+  }
+
   let charSum = 0;
   const combined = s + d;
   for (let i = 0; i < combined.length; i++) {
     charSum += combined.charCodeAt(i);
   }
-  return 250 + (charSum % 450);
+  return 150 + (charSum % 200);
 };
 
 /**
@@ -134,16 +213,19 @@ const estimateRouteDistanceFallback = (startLocation, destination) => {
 const calculateRouteDistance = async (startLocation, destination) => {
   if (!startLocation || !destination) return 300;
 
-  if (MAPS_API_KEY) {
+  const apiKey = MAPS_API_KEY;
+
+  if (apiKey) {
     try {
       const res = await axios.get(`${DISTANCE_BASE}/json`, {
         params: {
           origins: startLocation,
           destinations: destination,
           mode: 'driving',
-          key: MAPS_API_KEY,
+          key: apiKey,
           units: 'metric',
         },
+        timeout: 4000,
       });
 
       if (res.data?.rows?.[0]?.elements?.[0]?.status === 'OK') {
@@ -151,8 +233,27 @@ const calculateRouteDistance = async (startLocation, destination) => {
         return Math.round(meters / 1000);
       }
     } catch (err) {
-      logger.error('Route distance calculation error:', err.message);
+      logger.error('Google Distance Matrix API error:', err.message);
     }
+  }
+
+  try {
+    const startCoords = getCityCoordinates(startLocation);
+    const destCoords = getCityCoordinates(destination);
+
+    if (startCoords && destCoords) {
+      const osrmRes = await axios.get(
+        `https://router.project-osrm.org/route/v1/driving/${startCoords.lng},${startCoords.lat};${destCoords.lng},${destCoords.lat}?overview=false`,
+        { timeout: 4000 }
+      );
+      if (osrmRes.data?.routes?.[0]?.distance) {
+        const km = Math.round(osrmRes.data.routes[0].distance / 1000);
+        logger.info(`OSRM driving distance for ${startLocation} -> ${destination}: ${km} km`);
+        return km;
+      }
+    }
+  } catch (err) {
+    logger.error('OSRM route calculation error:', err.message);
   }
 
   return estimateRouteDistanceFallback(startLocation, destination);
@@ -188,58 +289,115 @@ const getSampleHotels = (destination, maxPrice) => {
   ];
 };
 
+const getSamplePlaces = (destination, type) => {
+  const sampleAttractions = [
+    { name: `${destination} Heritage Park`, rating: 4.5, address: `Central ${destination}`, types: ['park', 'tourist_attraction'] },
+    { name: `${destination} Botanical Garden`, rating: 4.3, address: `North ${destination}`, types: ['botanical_garden'] },
+    { name: `${destination} Lake`, rating: 4.6, address: `East ${destination}`, types: ['natural_feature'] },
+    { name: `${destination} Museum`, rating: 4.2, address: `South ${destination}`, types: ['museum'] },
+    { name: `${destination} Viewpoint`, rating: 4.7, address: `Hill Top, ${destination}`, types: ['point_of_interest'] },
+    { name: `${destination} Market`, rating: 4.1, address: `Market Street, ${destination}`, types: ['shopping'] },
+  ];
+
+  const sampleRestaurants = [
+    { name: `Spice Garden Restaurant`, rating: 4.4, address: `Main Road, ${destination}`, types: ['restaurant'] },
+    { name: `The Green Leaf Cafe`, rating: 4.5, address: `Park Lane, ${destination}`, types: ['cafe'] },
+    { name: `Local Delights`, rating: 4.3, address: `Food Street, ${destination}`, types: ['restaurant'] },
+    { name: `Mountain View Diner`, rating: 4.2, address: `View Point Road, ${destination}`, types: ['restaurant'] },
+  ];
+
+  return (type === 'restaurant' ? sampleRestaurants : sampleAttractions).map((p, i) => ({
+    placeId: `sample_${i}`,
+    location: { lat: 11.4 + i * 0.01, lng: 76.7 + i * 0.01 },
+    simulated: true,
+    ...p,
+  }));
+};
+
 /**
- * Search real hotel data for destination
+ * Search hotel listings through Google Places.
  */
 const searchHotels = async (destination, minRating = 4.0, maxPrice = 15000) => {
   let hotels = [];
+  const apiKey = MAPS_API_KEY;
 
-  if (MAPS_API_KEY) {
+  if (apiKey) {
     try {
-      const geoRes = await axios.get(`${GEOCODE_BASE}/json`, {
-        params: { address: destination, key: MAPS_API_KEY },
+      logger.info(`Fetching real hotels for destination "${destination}" using API key...`);
+
+      // First try Text Search API for hotels in destination
+      const textRes = await axios.get(`${PLACES_BASE}/textsearch/json`, {
+        params: {
+          query: `${destination} hotels`,
+          key: apiKey,
+        },
       });
 
-      if (geoRes.data.status === 'OK') {
-        const location = geoRes.data.results[0].geometry.location;
-        const locationStr = `${location.lat},${location.lng}`;
-
-        const placesRes = await axios.get(`${PLACES_BASE}/nearbysearch/json`, {
-          params: {
-            location: locationStr,
-            radius: 15000,
-            type: 'lodging',
-            key: MAPS_API_KEY,
-            rankby: 'prominence',
-          },
+      if (textRes.data?.status === 'OK' && textRes.data.results?.length > 0) {
+        hotels = textRes.data.results.map((place, index) => {
+          const rating = place.rating || 4.0 + (index % 8) * 0.1;
+          const basePrice = Math.round(3500 + (rating - 3.5) * 4000);
+          return {
+            placeId: place.place_id,
+            name: place.name,
+            rating: Number(rating.toFixed(1)),
+            address: place.formatted_address || place.vicinity || `${destination} Central`,
+            location: {
+              lat: place.geometry?.location?.lat || 0,
+              lng: place.geometry?.location?.lng || 0,
+            },
+            pricePerNight: Math.min(basePrice, maxPrice || 20000),
+            isEstimatedPrice: true,
+            photoRef: place.photos?.[0]?.photo_reference,
+          };
+        });
+      } else {
+        // Try nearby search if text search didn't return OK
+        const geoRes = await axios.get(`${GEOCODE_BASE}/json`, {
+          params: { address: destination, key: apiKey },
         });
 
-        if (placesRes.data.status === 'OK') {
-          hotels = placesRes.data.results.map((place, index) => {
-            const rating = place.rating || 4.0 + (index % 8) * 0.1;
-            const basePrice = Math.round(3500 + (rating - 3.5) * 4000);
-            return {
-              placeId: place.place_id,
-              name: place.name,
-              rating: Number(rating.toFixed(1)),
-              address: place.vicinity || `${destination} Central`,
-              location: {
-                lat: place.geometry.location.lat,
-                lng: place.geometry.location.lng,
-              },
-              pricePerNight: Math.min(basePrice, maxPrice || 20000),
-              isEstimatedPrice: true,
-              photoRef: place.photos?.[0]?.photo_reference,
-            };
+        if (geoRes.data?.status === 'OK' && geoRes.data.results?.[0]) {
+          const location = geoRes.data.results[0].geometry.location;
+          const locationStr = `${location.lat},${location.lng}`;
+
+          const placesRes = await axios.get(`${PLACES_BASE}/nearbysearch/json`, {
+            params: {
+              location: locationStr,
+              radius: 15000,
+              type: 'lodging',
+              key: apiKey,
+            },
           });
+
+          if (placesRes.data?.status === 'OK' && placesRes.data.results?.length > 0) {
+            hotels = placesRes.data.results.map((place, index) => {
+              const rating = place.rating || 4.0 + (index % 8) * 0.1;
+              const basePrice = Math.round(3500 + (rating - 3.5) * 4000);
+              return {
+                placeId: place.place_id,
+                name: place.name,
+                rating: Number(rating.toFixed(1)),
+                address: place.vicinity || `${destination} Central`,
+                location: {
+                  lat: place.geometry?.location?.lat || 0,
+                  lng: place.geometry?.location?.lng || 0,
+                },
+                pricePerNight: Math.min(basePrice, maxPrice || 20000),
+                isEstimatedPrice: true,
+                photoRef: place.photos?.[0]?.photo_reference,
+              };
+            });
+          }
         }
       }
     } catch (error) {
-      logger.error('Error fetching real hotels via Maps API:', error.message);
+      logger.error('Google Places hotel search error:', error.message);
     }
   }
 
   if (hotels.length === 0) {
+    logger.info(`Using real hotel fallback data for ${destination}`);
     hotels = getSampleHotels(destination, maxPrice);
   }
 
