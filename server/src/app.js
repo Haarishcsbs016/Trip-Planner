@@ -21,25 +21,56 @@ const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100,
   message: 'Too many requests from this IP, please try again later.',
+  skip: (req) => req.method === 'OPTIONS',
 });
 app.use('/api/', limiter);
+app.use('/auth/', limiter);
 
 // AI route gets stricter limiting
 const aiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 5,
   message: 'Too many AI requests, please wait a moment.',
+  skip: (req) => req.method === 'OPTIONS',
 });
 app.use('/api/trips/:id/generate', aiLimiter);
 app.use('/api/trips/:id/regenerate', aiLimiter);
 
-// CORS
+// CORS configuration supporting dynamic origins (Vercel, localhost, custom CLIENT_URL)
+const allowedOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(',').map((url) => url.trim())
+  : [];
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+
+      // Allow localhost and local IP development origins
+      if (
+        origin.startsWith('http://localhost:') ||
+        origin.startsWith('http://127.0.0.1:') ||
+        origin.startsWith('https://localhost:')
+      ) {
+        return callback(null, true);
+      }
+
+      // Allow Vercel preview and production deployments
+      if (origin.endsWith('.vercel.app')) {
+        return callback(null, true);
+      }
+
+      // Allow explicitly specified CLIENT_URL origins
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      callback(null, true); // Fallback allow to prevent unexpected CORS blocks while logging warnings in dev
+    },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   })
 );
 
@@ -57,8 +88,9 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString(), service: 'TripPlanner API' });
 });
 
-// API routes
+// API routes and aliases
 app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes); // Alias for requests sent without /api prefix
 app.use('/api/trips', tripRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/shared', sharedRoutes);

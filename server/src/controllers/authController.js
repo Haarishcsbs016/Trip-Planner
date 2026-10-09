@@ -9,15 +9,28 @@ const register = async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
 
-    let user = await User.findOne({ email });
-    if (!user) {
-      user = await User.create({ name: name || 'Haarish', email, password: password || 'Password123!' });
-      logger.info(`New user registered: ${email}`);
+    const normalizedEmail = email ? email.toLowerCase().trim() : '';
+
+    let existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists with this email',
+        errors: ['User already exists with this email'],
+      });
     }
+
+    const user = await User.create({
+      name: name ? name.trim() : 'Explorer',
+      email: normalizedEmail,
+      password,
+    });
+
+    logger.info(`New user registered: ${user.email}`);
 
     const token = generateToken(user._id);
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       token,
       user: {
@@ -40,28 +53,28 @@ const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    let user = await User.findOne({ email }).select('+password');
+    const normalizedEmail = email ? email.toLowerCase().trim() : '';
+
+    const user = await User.findOne({ email: normalizedEmail }).select('+password');
 
     if (!user) {
-      const rawName = email ? email.split('@')[0].replace(/[0-9_.]/g, '') : 'Explorer';
-      const formattedName = rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : 'Haarish';
-      user = await User.create({
-        name: formattedName || 'Haarish',
-        email,
-        password: password || 'Password123!',
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password',
       });
-      logger.info(`Auto-created user on login: ${email}`);
-    } else {
-      const isMatch = await user.comparePassword(password);
-      if (!isMatch) {
-        user.password = password;
-        await user.save();
-      }
+    }
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password',
+      });
     }
 
     const token = generateToken(user._id);
 
-    res.json({
+    return res.json({
       success: true,
       token,
       user: {

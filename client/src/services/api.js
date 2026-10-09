@@ -1,7 +1,16 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/tripStore';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const getBaseURL = () => {
+  let url = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  url = url.trim().replace(/\/+$/, '');
+  if (!url.endsWith('/api') && !url.includes('/api/')) {
+    url = `${url}/api`;
+  }
+  return url;
+};
+
+const API_URL = getBaseURL();
 
 const api = axios.create({
   baseURL: API_URL,

@@ -37,10 +37,14 @@ const Register = () => {
       navigate('/dashboard');
     } catch (err) {
       const data = err.response?.data;
-      if (data?.errors) {
+      if (data?.errors && Array.isArray(data.errors) && data.errors.length > 0) {
         setErrors(data.errors);
+      } else if (data?.message) {
+        setErrors([data.message]);
+      } else if (err.message === 'Network Error' || !err.response) {
+        setErrors(['Unable to connect to the authentication server. Please check your backend deployment or internet connection.']);
       } else {
-        setErrors([data?.message || 'Registration failed. Please try again.']);
+        setErrors(['Registration failed. Please try again.']);
       }
     } finally {
       setLoading(false);

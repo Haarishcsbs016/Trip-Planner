@@ -17,16 +17,7 @@ const protect = async (req, res, next) => {
     req.user = await User.findById(decoded.id).select('-password');
 
     if (!req.user) {
-      try {
-        req.user = await User.create({
-          _id: decoded.id,
-          name: 'Haarish',
-          email: `user_${String(decoded.id).slice(-6)}@wanderwise.com`,
-          password: 'Password123!',
-        });
-      } catch (createErr) {
-        return res.status(401).json({ success: false, message: 'User not found' });
-      }
+      return res.status(401).json({ success: false, message: 'User not found' });
     }
 
     next();

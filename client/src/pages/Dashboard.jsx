@@ -16,9 +16,10 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const { data: tripsData, isLoading } = useQuery({
-    queryKey: ['trips'],
+    queryKey: ['trips', user?._id],
     queryFn: () => tripsAPI.getAll({ limit: 6 }),
     select: (res) => res.data,
+    enabled: !!user?._id,
   });
 
   const trips = tripsData?.trips || [];

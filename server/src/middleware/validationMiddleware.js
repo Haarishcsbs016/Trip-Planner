@@ -17,7 +17,7 @@ const validateRegister = (req, res, next) => {
   }
 
   if (errors.length > 0) {
-    return res.status(400).json({ success: false, errors });
+    return res.status(400).json({ success: false, message: errors[0], errors });
   }
 
   next();
@@ -36,7 +36,7 @@ const validateLogin = (req, res, next) => {
   }
 
   if (errors.length > 0) {
-    return res.status(400).json({ success: false, errors });
+    return res.status(400).json({ success: false, message: errors[0], errors });
   }
 
   next();

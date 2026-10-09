@@ -24,7 +24,16 @@ const Login = () => {
       toast.success(`Welcome back, ${res.data.user.name}! 🌿`);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      const data = err.response?.data;
+      if (data?.message) {
+        setError(data.message);
+      } else if (data?.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+        setError(data.errors.join(', '));
+      } else if (err.message === 'Network Error' || !err.response) {
+        setError('Unable to connect to the authentication server. Please check your backend deployment or internet connection.');
+      } else {
+        setError('Login failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

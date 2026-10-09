@@ -11,6 +11,7 @@ export const useAuthStore = create(
 
       setAuth: (user, token) => {
         localStorage.setItem('tripplanner_token', token);
+        useTripStore.getState().resetForm();
         set({ user, token, isAuthenticated: true });
       },
 
@@ -20,6 +21,7 @@ export const useAuthStore = create(
         localStorage.removeItem('tripplanner_token');
         localStorage.removeItem('tripplanner_user');
         localStorage.removeItem('tripplanner_auth');
+        useTripStore.getState().resetForm();
         set({ user: null, token: null, isAuthenticated: false });
       },
     }),

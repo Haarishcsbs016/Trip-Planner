@@ -17,14 +17,16 @@ const statusFilters = [
 ];
 
 const MyTrips = () => {
+  const { user } = useAuthStore();
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['trips', filter],
+    queryKey: ['trips', user?._id, filter],
     queryFn: () => tripsAPI.getAll({ status: filter || undefined, limit: 20 }),
     select: (res) => res.data,
+    enabled: !!user?._id,
   });
 
   const deleteMutation = useMutation({

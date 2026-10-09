@@ -663,72 +663,88 @@ const Step6 = ({ form, setSelectedHotel }) => {
           No hotels matching filters. Try adjusting rating or price range.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
           {hotels.map((h) => {
             const isSelected = form.selectedHotel?.placeId === h.placeId || form.selectedHotel?.name === h.name;
+            const hotelImg = h.image || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80';
             return (
               <div
                 key={h.placeId || h.name}
                 style={{
-                  background: 'white', borderRadius: 18, padding: 18,
+                  background: 'white', borderRadius: 18, overflow: 'hidden',
                   border: `2px solid ${isSelected ? '#4a8c6f' : 'rgba(74,140,111,0.15)'}`,
-                  boxShadow: isSelected ? '0 8px 24px rgba(74,140,111,0.15)' : 'none',
+                  boxShadow: isSelected ? '0 8px 24px rgba(74,140,111,0.2)' : '0 2px 10px rgba(0,0,0,0.04)',
                   display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                   transition: 'all 0.2s ease',
                   position: 'relative',
                 }}
               >
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                    <h4 style={{ fontSize: 15, fontWeight: 700, color: '#1a3a2e', margin: 0 }}>{h.name}</h4>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#d4a843', display: 'flex', alignItems: 'center', gap: 2 }}>
-                      ⭐ {h.rating}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#4a8c6f', marginBottom: 4 }}>
-                    ₹{h.pricePerNight?.toLocaleString('en-IN')}/night
-                    {h.isEstimatedPrice && (
-                      <span style={{ fontSize: 10, fontWeight: 500, color: '#9ca3af', marginLeft: 6 }}>
-                        (Est. price)
-                      </span>
-                    )}
-                  </div>
-
-                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <MapPin size={12} /> {h.address}
+                {/* Hotel Image Banner */}
+                <div style={{ position: 'relative', height: 130, width: '100%', overflow: 'hidden' }}>
+                  <img
+                    src={hotelImg}
+                    alt={h.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                  <div style={{
+                    position: 'absolute', top: 10, right: 10,
+                    background: 'rgba(26,58,46,0.85)', backdropFilter: 'blur(4px)',
+                    color: '#d4a843', padding: '4px 8px', borderRadius: 50,
+                    fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3
+                  }}>
+                    ⭐ {h.rating}
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <button
-                    type="button"
-                    onClick={() => setViewingHotel(h)}
-                    style={{
-                      padding: '8px 12px', borderRadius: 10,
-                      border: '1px solid #d1d5db', background: 'white',
-                      fontSize: 12, fontWeight: 600, color: '#374151', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', gap: 4,
-                    }}
-                  >
-                    <Eye size={13} /> View
-                  </button>
+                <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <h4 style={{ fontSize: 15, fontWeight: 700, color: '#1a3a2e', marginBottom: 4, lineHeight: 1.3 }}>{h.name}</h4>
 
-                  <button
-                    type="button"
-                    onClick={() => setSelectedHotel(h)}
-                    style={{
-                      flex: 1, padding: '8px 14px', borderRadius: 10,
-                      border: 'none',
-                      background: isSelected ? '#4a8c6f' : '#f0faf4',
-                      color: isSelected ? 'white' : '#4a8c6f',
-                      fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                    }}
-                  >
-                    {isSelected ? <Check size={14} /> : null}
-                    {isSelected ? 'Selected' : 'Select'}
-                  </button>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: '#4a8c6f', marginBottom: 6 }}>
+                      ₹{h.pricePerNight?.toLocaleString('en-IN')}/night
+                      {h.isEstimatedPrice && (
+                        <span style={{ fontSize: 10, fontWeight: 500, color: '#9ca3af', marginLeft: 6 }}>
+                          (Est. price)
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 4, lineHeight: 1.3 }}>
+                      <MapPin size={13} style={{ flexShrink: 0, color: '#4a8c6f' }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.address}</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => setViewingHotel(h)}
+                      style={{
+                        padding: '8px 12px', borderRadius: 10,
+                        border: '1px solid #d1d5db', background: 'white',
+                        fontSize: 12, fontWeight: 600, color: '#374151', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 4,
+                      }}
+                    >
+                      <Eye size={13} /> View
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedHotel(h)}
+                      style={{
+                        flex: 1, padding: '8px 14px', borderRadius: 10,
+                        border: 'none',
+                        background: isSelected ? '#4a8c6f' : '#f0faf4',
+                        color: isSelected ? 'white' : '#4a8c6f',
+                        fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                      }}
+                    >
+                      {isSelected ? <Check size={14} /> : null}
+                      {isSelected ? 'Selected' : 'Select'}
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -753,23 +769,80 @@ const Step6 = ({ form, setSelectedHotel }) => {
         </div>
       )}
 
-      {/* Modal detail viewer */}
+      {/* Modal detail viewer with Hotel API photo, address, amenities and Map link */}
       {viewingHotel && (
         <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16
         }}>
-          <div style={{ background: 'white', borderRadius: 20, padding: 28, maxWidth: 420, width: '90%' }}>
-            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: '#1a3a2e', marginBottom: 8 }}>
+          <div style={{
+            background: 'white', borderRadius: 24, padding: 24, maxWidth: 440, width: '100%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden', animation: 'scaleIn 0.2s ease'
+          }}>
+            {/* Modal Hotel Image */}
+            <div style={{ position: 'relative', height: 180, borderRadius: 16, overflow: 'hidden', marginBottom: 16 }}>
+              <img
+                src={viewingHotel.image || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80'}
+                alt={viewingHotel.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+              <div style={{
+                position: 'absolute', top: 12, right: 12,
+                background: 'rgba(26,58,46,0.9)', color: '#d4a843',
+                padding: '4px 10px', borderRadius: 50, fontSize: 13, fontWeight: 700,
+                display: 'flex', alignItems: 'center', gap: 4
+              }}>
+                ⭐ {viewingHotel.rating}
+              </div>
+            </div>
+
+            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, color: '#1a3a2e', marginBottom: 6 }}>
               {viewingHotel.name}
             </h3>
-            <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>📍 {viewingHotel.address}</p>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#4a8c6f', marginBottom: 16 }}>
-              Rating: ⭐ {viewingHotel.rating} | Estimated Rate: ₹{viewingHotel.pricePerNight?.toLocaleString('en-IN')}/night
+
+            <div style={{ fontSize: 13, color: '#4b5563', marginBottom: 10, display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+              <MapPin size={16} color="#4a8c6f" style={{ flexShrink: 0, marginTop: 2 }} />
+              <span>{viewingHotel.address}</span>
             </div>
-            <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.5, marginBottom: 20 }}>
-              This hotel will be used as your base stay location by the AI planner to optimize daily activity routes and attractions.
+
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#4a8c6f', marginBottom: 12 }}>
+              Rate: ₹{viewingHotel.pricePerNight?.toLocaleString('en-IN')}/night
+              {viewingHotel.isEstimatedPrice && <span style={{ fontSize: 11, fontWeight: 500, color: '#9ca3af', marginLeft: 6 }}>(Estimated API Rate)</span>}
+            </div>
+
+            {/* Amenities tags */}
+            {viewingHotel.amenities && viewingHotel.amenities.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+                {viewingHotel.amenities.map((amenity, idx) => (
+                  <span key={idx} style={{
+                    padding: '3px 9px', background: '#f0faf4', color: '#4a8c6f',
+                    borderRadius: 50, fontSize: 11, fontWeight: 600, border: '1px solid rgba(74,140,111,0.2)'
+                  }}>
+                    ✓ {amenity}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <p style={{ fontSize: 13, color: '#4b5563', lineHeight: 1.5, marginBottom: 16 }}>
+              {viewingHotel.description || 'This accommodation will serve as your daily stay hub for itinerary optimization and activity planning.'}
             </p>
+
+            {/* External Google Maps address link */}
+            <div style={{ marginBottom: 20 }}>
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(viewingHotel.name + ' ' + viewingHotel.address)}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  fontSize: 13, fontWeight: 600, color: '#4a8c6f', textDecoration: 'none',
+                  display: 'inline-flex', alignItems: 'center', gap: 6
+                }}
+              >
+                📍 Open Location in Google Maps ↗
+              </a>
+            </div>
+
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 className="btn-secondary"
